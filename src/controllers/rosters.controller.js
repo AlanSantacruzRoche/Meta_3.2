@@ -1,28 +1,16 @@
-import { Op } from 'sequelize';
 import { Jugador, Roster, RosterJugador } from '../models/index.js';
-import { handleError, validarCampos } from '../utils/errors.js';
+import { validarCampos } from '../utils/errors.js';
+import { validarAsignacion, listarRosters } from '../services/rosters.service.js';
 
-export async function listar(req, res) {
+export async function listar(req, res, next) {
   try {
     const { tipo, temporada } = req.query;
     if (tipo && !['Principal', 'Academy'].includes(tipo)) return res.status(400).json({ error: 'Tipo inválido. Usa Principal o Academy.' });
-    const where = {};
-    if (tipo) where.tipo = tipo;
-    if (temporada) where.temporada = String(temporada);
-    const rosters = await Roster.findAll({
-      where, order: [['nombre', 'ASC']],
-      include: [{ model: Jugador, as: 'jugadores', attributes: ['id'], through: { attributes: [] }, required: false }]
-    });
-    res.json(rosters.map(r => {
-      const data = r.toJSON();
-      data.cantidad_jugadores = data.jugadores.length;
-      delete data.jugadores;
-      return data;
-    }));
-  } catch (e) { handleError(e, res); }
+    res.json(await listarRosters({ tipo, temporada }));
+  } catch (e) { next(e); }
 }
 
-export async function detalle(req, res) {
+export async function detalle(req, res, next) {
   try {
     const roster = await Roster.findByPk(req.params.id, {
       include: [{ model: Jugador, as: 'jugadores', attributes: ['id', 'nickname', 'rol', 'pais', 'estado'], through: { attributes: ['rol_en_roster'] } }]
@@ -34,10 +22,10 @@ export async function detalle(req, res) {
       rol_en_roster: j.RosterJugador.rol_en_roster
     }));
     res.json(data);
-  } catch (e) { handleError(e, res); }
+  } catch (e) { next(e); }
 }
 
-export async function crear(req, res) {
+export async function crear(req, res, next) {
   try {
     const faltantes = validarCampos(req.body, ['nombre', 'temporada']);
     if (faltantes.length) return res.status(400).json({ error: 'Faltan campos obligatorios.', campos: faltantes });
@@ -49,10 +37,10 @@ export async function crear(req, res) {
       temporada: String(req.body.temporada)
     });
     res.status(201).json(roster);
-  } catch (e) { handleError(e, res); }
+  } catch (e) { next(e); }
 }
 
-export async function actualizar(req, res) {
+export async function actualizar(req, res, next) {
   try {
     const roster = await Roster.findByPk(req.params.id);
     if (!roster) return res.status(404).json({ error: 'Roster no encontrado.' });
@@ -66,20 +54,20 @@ export async function actualizar(req, res) {
       ...(temporada !== undefined && { temporada: String(temporada) })
     });
     res.json(roster);
-  } catch (e) { handleError(e, res); }
+  } catch (e) { next(e); }
 }
 
-export async function eliminar(req, res) {
+export async function eliminar(req, res, next) {
   try {
     const roster = await Roster.findByPk(req.params.id);
     if (!roster) return res.status(404).json({ error: 'Roster no encontrado.' });
     await RosterJugador.destroy({ where: { id_roster: roster.id } });
     await roster.destroy();
     res.status(204).end();
-  } catch (e) { handleError(e, res); }
+  } catch (e) { next(e); }
 }
 
-export async function listarJugadores(req, res) {
+export async function listarJugadores(req, res, next) {
   try {
     const roster = await Roster.findByPk(req.params.id);
     if (!roster) return res.status(404).json({ error: 'Roster no encontrado.' });
@@ -87,28 +75,10 @@ export async function listarJugadores(req, res) {
       where: { id_roster: roster.id }, include: [{ model: Jugador, attributes: ['id', 'nickname', 'nombre_real', 'pais', 'rol', 'estado'] }]
     });
     res.json(asignaciones.map(a => ({ ...a.Jugador.toJSON(), rol_en_roster: a.rol_en_roster })));
-  } catch (e) { handleError(e, res); }
+  } catch (e) { next(e); }
 }
 
-async function validarAsignacion(idRoster, idJugador, rolEnRoster, excluirId = null) {
-  if (!['Titular', 'Suplente'].includes(rolEnRoster)) return { status: 400, error: 'rol_en_roster debe ser Titular o Suplente.' };
-  const roster = await Roster.findByPk(idRoster);
-  if (!roster) return { status: 404, error: 'Roster no encontrado.' };
-  const jugador = await Jugador.findByPk(idJugador);
-  if (!jugador) return { status: 404, error: 'Jugador no encontrado.' };
-  if (rolEnRoster === 'Titular') {
-    const where = { id_roster: idRoster, rol_en_roster: 'Titular' };
-    if (excluirId) where.id = { [Op.ne]: excluirId };
-    const titulares = await RosterJugador.findAll({ where, include: [{ model: Jugador, attributes: ['rol'] }] });
-    if (titulares.length >= 5) return { status: 409, error: 'Un roster no puede tener más de 5 titulares.' };
-    if (titulares.some(a => a.Jugador.rol === jugador.rol)) {
-      return { status: 409, error: `Ya existe un titular con el rol ${jugador.rol} en este roster.` };
-    }
-  }
-  return null;
-}
-
-export async function asignarJugador(req, res) {
+export async function asignarJugador(req, res, next) {
   try {
     const faltantes = validarCampos(req.body, ['id_jugador', 'rol_en_roster']);
     if (faltantes.length) return res.status(400).json({ error: 'Faltan campos obligatorios.', campos: faltantes });
@@ -118,10 +88,10 @@ export async function asignarJugador(req, res) {
       id_roster: req.params.id, id_jugador: req.body.id_jugador, rol_en_roster: req.body.rol_en_roster
     });
     res.status(201).json(asignacion);
-  } catch (e) { handleError(e, res); }
+  } catch (e) { next(e); }
 }
 
-export async function cambiarRolJugador(req, res) {
+export async function cambiarRolJugador(req, res, next) {
   try {
     const asignacion = await RosterJugador.findOne({ where: { id_roster: req.params.id, id_jugador: req.params.id_jugador } });
     if (!asignacion) return res.status(404).json({ error: 'La asignación no existe en este roster.' });
@@ -129,14 +99,14 @@ export async function cambiarRolJugador(req, res) {
     if (error) return res.status(error.status).json({ error: error.error });
     await asignacion.update({ rol_en_roster: req.body.rol_en_roster });
     res.json(asignacion);
-  } catch (e) { handleError(e, res); }
+  } catch (e) { next(e); }
 }
 
-export async function quitarJugador(req, res) {
+export async function quitarJugador(req, res, next) {
   try {
     const asignacion = await RosterJugador.findOne({ where: { id_roster: req.params.id, id_jugador: req.params.id_jugador } });
     if (!asignacion) return res.status(404).json({ error: 'La asignación no existe en este roster.' });
     await asignacion.destroy();
     res.status(204).end();
-  } catch (e) { handleError(e, res); }
+  } catch (e) { next(e); }
 }

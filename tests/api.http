@@ -1,0 +1,103 @@
+@baseUrl = http://localhost:3000/api/v1
+@token = claveSegura
+@jugadorId = 1
+@rosterId = 1
+
+### Health
+GET {{baseUrl}}/health
+
+### Roles
+GET {{baseUrl}}/roles
+
+### Estados
+GET {{baseUrl}}/estados
+
+### Tipos roster
+GET {{baseUrl}}/tipos-roster
+
+### Crear jugador (201); cambia nickname si ya existe
+POST {{baseUrl}}/jugadores
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nickname": "JugadorPrueba01",
+  "nombre_real": "Nombre de prueba",
+  "pais": "México",
+  "rol": "Mid",
+  "estado": "activo"
+}
+
+### Listar jugadores
+GET {{baseUrl}}/jugadores
+
+### Filtrar jugadores
+GET {{baseUrl}}/jugadores?rol=Mid&estado=activo&search=Jugador
+
+### Detalle jugador
+GET {{baseUrl}}/jugadores/{{jugadorId}}
+
+### Actualizar jugador
+PUT {{baseUrl}}/jugadores/{{jugadorId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "pais": "México", "estado": "activo" }
+
+### Crear roster
+POST {{baseUrl}}/rosters
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "nombre": "Roster de prueba", "juego": "League of Legends", "tipo": "Principal", "temporada": "2026" }
+
+### Listar rosters
+GET {{baseUrl}}/rosters
+
+### Filtrar rosters
+GET {{baseUrl}}/rosters?tipo=Principal&temporada=2026
+
+### Detalle roster
+GET {{baseUrl}}/rosters/{{rosterId}}
+
+### Jugadores del roster
+GET {{baseUrl}}/rosters/{{rosterId}}/jugadores
+
+### Asignar jugador como titular
+POST {{baseUrl}}/rosters/{{rosterId}}/jugadores
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "id_jugador": {{jugadorId}}, "rol_en_roster": "Titular" }
+
+### Cambiar jugador a suplente
+PUT {{baseUrl}}/rosters/{{rosterId}}/jugadores/{{jugadorId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "rol_en_roster": "Suplente" }
+
+### Quitar jugador del roster
+DELETE {{baseUrl}}/rosters/{{rosterId}}/jugadores/{{jugadorId}}
+Authorization: Bearer {{token}}
+
+### Nickname duplicado: debe responder 409 (ejecutar después de crear JugadorPrueba01)
+POST {{baseUrl}}/jugadores
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "nickname": "JugadorPrueba01", "rol": "Mid" }
+
+### ID inválido: debe responder 400
+GET {{baseUrl}}/jugadores/abc
+
+### Roster inexistente: debe responder 404
+GET {{baseUrl}}/rosters/999999
+
+### Eliminar roster (204); elimina el roster y sus asignaciones, no los jugadores
+DELETE {{baseUrl}}/rosters/{{rosterId}}
+Authorization: Bearer {{token}}
+
+### Eliminar jugador (204)
+DELETE {{baseUrl}}/jugadores/{{jugadorId}}
+Authorization: Bearer {{token}}

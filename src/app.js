@@ -5,6 +5,7 @@ import swaggerUi from 'swagger-ui-express';
 import fs from 'node:fs';
 import YAML from 'yaml';
 import sequelize from './config/database.js';
+import { handleError } from './utils/errors.js';
 import './models/index.js';
 import jugadoresRoutes from './routes/jugadores.routes.js';
 import rostersRoutes from './routes/rosters.routes.js';
@@ -34,16 +35,14 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapi));
 
 app.use((req, res) => res.status(404).json({ error: 'Endpoint no encontrado.' }));
 app.use((err, _req, res, _next) => {
-  console.error(err);
-  res.status(500).json({ error: 'Error interno del servidor.' });
+  handleError(err, res);
 });
 
 const port = Number(process.env.PORT || 3000);
 const start = async () => {
   try {
     await sequelize.authenticate();
-    // Para una práctica inicial. En producción, usar migraciones de Sequelize.
-    await sequelize.sync();
+    // Las tablas se administran mediante migraciones versionadas: npm run migrate
     console.log('Conexión a MySQL establecida.');
     app.listen(port, () => console.log(`API activa en http://localhost:${port}`));
   } catch (error) {

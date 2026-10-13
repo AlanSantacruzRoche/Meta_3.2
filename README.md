@@ -35,12 +35,13 @@ API REST construida con Node.js, Express, Sequelize y MySQL.
 6. Inicia la API:
 
    ```powershell
+   npm run migrate
    npm run dev
    ```
 
    o `npm start`.
 
-Al arrancar, Sequelize crea las tablas si no existen. Para un proyecto de producción, reemplaza `sequelize.sync()` por migraciones versionadas.
+Las tablas se crean mediante migraciones versionadas. Ejecuta `npm run migrate` antes de iniciar la API.
 
 ## URLs
 - API: `http://localhost:3000/api/v1`
@@ -138,3 +139,49 @@ Filtros: `tipo`, `temporada`.
 - `GET /api/v1/estados`
 - `GET /api/v1/tipos-roster`
 - `GET /api/v1/health`
+
+## Reglas de negocio implementadas
+- Nickname único.
+- Máximo cinco titulares por roster.
+- No se permiten dos titulares con el mismo rol de jugador en un roster.
+- Un jugador puede pertenecer a varios rosters, pero no repetirse dentro del mismo roster.
+- Eliminar un roster no elimina a los jugadores.
+- Las escrituras requieren token de administrador.
+
+## Git
+```powershell
+git init
+git add .
+git commit -m "Implementa API de jugadores y rosters"
+```
+
+
+## Estructura del proyecto
+```text
+src/
+├── config/          # Conexión a MySQL
+├── controllers/     # Entrada HTTP, validaciones de request y respuestas
+├── middleware/     # Autorización, validación de IDs y errores globales
+├── migrations/      # Cambios versionados del esquema MySQL
+├── models/          # Modelos Sequelize y asociaciones
+├── routes/          # Definición de endpoints REST
+├── services/        # Lógica de acceso a datos y reglas de negocio
+├── utils/           # Utilidades de validación y errores
+└── app.js           # Configuración e inicio de Express
+tests/api.http       # Pruebas manuales para REST Client en VS Code
+openapi.yaml         # Documentación OpenAPI
+```
+
+## Migraciones
+Después de configurar `.env`, ejecuta:
+```powershell
+npm run migrate
+```
+Para revertir la última migración:
+```powershell
+npm run migrate:undo
+```
+No se usa `sequelize.sync()` al iniciar la API. Si ya habías creado las tablas con la versión anterior, primero respalda los datos y revisa la base de datos antes de ejecutar las migraciones iniciales; no ejecutes migraciones iniciales sobre tablas existentes sin planificar la transición.
+
+## Pruebas REST Client
+Instala la extensión **REST Client** de VS Code y abre `tests/api.http`. Ajusta `@token`, `@jugadorId` y `@rosterId` a los valores de tu entorno. Pulsa **Send Request** sobre cada bloque. El archivo incluye pruebas de endpoints, IDs inválidos, nickname duplicado y recursos inexistentes.
